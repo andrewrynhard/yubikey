@@ -1,0 +1,89 @@
+{
+  "builders": [
+    {
+      "accelerator": "kvm",
+      "boot_command": [
+        "<esc><wait>",
+        "/install.amd/vmlinuz ",
+        "initrd=/install.amd/initrd.gz ",
+        "hostname=airgap ",
+        "auto=true ",
+        "priority=critical ",
+        "interface=auto ",
+        "url=http://{{ .HTTPIP }}:{{ .HTTPPort }}/packer/preseed.cfg ",
+        "<enter>"
+      ],
+      "boot_wait": "2s",
+      "disk_interface": "virtio-scsi",
+      "disk_size": "{{ user `disk_size` }}",
+      "format": "raw",
+      "headless": "{{ user `headless` }}",
+      "http_directory": ".",
+      "iso_checksum": "sha256:{{ user `iso_checksum` }}",
+      "iso_url": "{{ user `iso_url` }}",
+      "name": "qemu",
+      "output_directory": ".packer/build/",
+      "qemuargs": [
+        [
+          "-m",
+          "{{ user `memory` }}"
+        ],
+        [
+          "-smp",
+          "cpus={{ user `cpus`}}"
+        ]
+     ],
+      "shutdown_command": "shutdown -h now",
+      "ssh_password": "airgap",
+      "ssh_timeout": "10m",
+      "ssh_username": "root",
+      "type": "qemu"
+    }
+  ],
+  "post-processors": [
+    [
+      {
+        "compression_level": 6,
+        "format": ".gz",
+        "keep_input_artifact": false,
+        "output": "dist/airgap-{{user `version`}}.raw.gz",
+        "type": "compress"
+      },
+      {
+        "inline": [
+          "ln -fs airgap-{{ user `version` }}.raw.gz dist/airgap-latest.raw.gz"
+        ],
+        "type": "shell-local"
+      }
+    ]
+  ],
+  "provisioners": [
+    {
+      "inline": [
+        "apt install -y gnupg libu2f-udev pcscd pcsc-tools python3-pkg-resources scdaemon vim yubikey-manager",
+        "systemctl enable pcscd"
+      ],
+      "type": "shell"
+    },
+    {
+      "destination": "/usr/local/bin/",
+      "source": "gpg.sh",
+      "type": "file"
+    },
+    {
+      "destination": "/usr/local/bin/",
+      "source": "yubikey.sh",
+      "type": "file"
+    }
+  ],
+  "variables": {
+    "cpus": "2",
+    "disk_size": "1600",
+    "headless": "true",
+    "iso_checksum": "8660593d10de0ce7577c9de4dab886ff540bc9843659c8879d8eea0ab224c109",
+    "iso_url": "https://cdimage.debian.org/mirror/cdimage/archive/10.9.0/amd64/iso-cd/debian-10.9.0-amd64-netinst.iso",
+    "memory": "8G",
+    "version": "{{ env `VERSION`}}"
+  }
+}
+
