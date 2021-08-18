@@ -2,13 +2,26 @@
 
 set -eou pipefail
 
+while true; do
+  read -p "Enter Name: " name
+  echo
+  read -p "Enter Email: " email
+  echo
+  [[ ! -z "$name" ]] && break || echo "Name is empty string"
+  echo
+  [[ ! -z "$email" ]] && break || echo "Email is empty string"
+  echo
+done
+
+echo 'User info confirmed'
+
 mkdir ~/gpg
 
 # Generate master key
 
-gpg --quick-gen-key "Andrew Rynhard <andrew@rynhard.io>" ed25519 sign 365d
-export KEYID=$(gpg --list-keys --with-colons | grep "^pub:" | cut -d: -f5)
-export FPR=$(gpg --list-keys --with-colons | grep "^fpr:" | cut -d: -f10)
+gpg --quick-gen-key "$name <$email>" ed25519 sign 365d
+export KEYID=$(gpg --list-keys --with-colons $email | grep "^pub:" | cut -d: -f5)
+export FPR=$(gpg --list-keys --with-colons $email | grep "^fpr:" | cut -d: -f10)
 
 # Generate subkeys
 
@@ -18,7 +31,7 @@ gpg --quick-add-key $FPR ed25519 sign 365d
 
 # Generate revocation certificate
 
-#gpg --gen-revoke andrew@rynhard.io ~/gpg/$FPR.revoke.asc
+gpg --generate-revocation --output ~/gpg/$FPR.revoke.asc $FPR
 
 # Configure GPG
 
@@ -27,7 +40,7 @@ echo "default-key $FPR" >~/gpg/gpg.conf
 # Test
 
 export GPG_TTY=$(tty)
-echo 'test' | gpg --clearsign
+echo 'test' | gpg --clearsign --default-key $email
 
 # Backup
 
@@ -45,7 +58,16 @@ chmod 700 ~/.gnupg/
 cp ~/gpg/gpg.conf ~/.gnupg/
 gpg --import ~/gpg/$FPR.master.asc ~/gpg/$FPR.subkeys.asc
 
-echo 'All keys have been successfully generated'
+echo
+echo '#############################################'
+echo 'All keys have been successfully generated!'
+echo 'Proceed with the following:'
+echo
 echo 'Copy ~/gpg to a secure offline storage device'
-echo "Copy ~/gpg/gpg.conf ~/gpg/$FPR.pub.asc and ~/gpg/$FPR.ssh to a storage device to be transfered to a workstation"
-
+echo
+echo 'Copy the following to a secondary storage device to'
+echo 'be transfered to a workstation:'
+echo "  - ~/gpg/gpg.conf"
+echo "  - ~/gpg/$FPR.pub.asc"
+echo "  - ~/gpg/$FPR.ssh"
+echo '#############################################'
